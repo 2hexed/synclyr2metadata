@@ -27,19 +27,30 @@ jobs:
     strategy:
       matrix:
         include:
-          - os: macos-latest
+          # Apple Silicon Mac (M1/M2/M3 native)
+          - os: macos-15
             output: synclyr2metadata
-            artifact: synclyr2metadata-macos
+            artifact: synclyr2metadata-macos-arm64
+            arch: arm64
+          
+          # Intel Mac (x86_64 native)
+          - os: macos-15-intel
+            output: synclyr2metadata
+            artifact: synclyr2metadata-macos-x86_64
+            arch: x86_64
+
+          # Windows Build
           - os: windows-latest
             output: bundle
             artifact: synclyr2metadata-windows
+            arch: x64
 
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
 
       - name: Install Mac Deps
-        if: matrix.os == 'macos-latest'
+        if: startsWith(matrix.os, 'macos')
         run: brew install curl taglib
 
       - name: Install Windows Deps
@@ -53,11 +64,20 @@ jobs:
             mingw-w64-x86_64-taglib
 
       - name: Build Mac
-        if: matrix.os == 'macos-latest'
+        if: startsWith(matrix.os, 'macos')
         run: |
+          # Dynamically determine Homebrew path based on the architecture we want
+          if [ "${{ matrix.arch }}" = "arm64" ]; then
+            BREW_PREFIX="/opt/homebrew"
+            TARGET_FLAG="-target arm64-apple-macos11"
+          else
+            BREW_PREFIX="/usr/local"
+            TARGET_FLAG="-target x86_64-apple-macos11"
+          fi
+
           make native \
-            CFLAGS="-O2 -I/opt/homebrew/include -Iinclude -Ithird_party/cjson" \
-            LDFLAGS="-L/opt/homebrew/lib -lcurl -ltag_c -ltag -lz -lpthread"
+            CFLAGS="-O2 ${TARGET_FLAG} -I${BREW_PREFIX}/include -Iinclude -Ithird_party/cjson" \
+            LDFLAGS="-L${BREW_PREFIX}/lib -lcurl -ltag_c -ltag -lz -lpthread"
 
       - name: Build and Bundle Windows
         if: matrix.os == 'windows-latest'
@@ -90,8 +110,12 @@ jobs:
 
       - name: Prepare Files for Release
         run: |
+          # Extract Linux binary
           mv synclyr2metadata-linux/synclyr2metadata ./synclyr2metadata-linux-amd64
-          mv synclyr2metadata-macos/synclyr2metadata ./synclyr2metadata-macos-arm64
+          
+          # Extract Mac binaries out of their respective download folders
+          mv synclyr2metadata-macos-arm64/synclyr2metadata ./synclyr2metadata-macos-arm64
+          mv synclyr2metadata-macos-x86_64/synclyr2metadata ./synclyr2metadata-macos-x86_64
           
           # Zip the Windows directory natively on Ubuntu
           cd synclyr2metadata-windows
@@ -104,6 +128,7 @@ jobs:
           files: |
             synclyr2metadata-linux-amd64
             synclyr2metadata-macos-arm64
+            synclyr2metadata-macos-x86_64
             synclyr2metadata-windows-x64.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
