@@ -31,7 +31,7 @@ jobs:
             output: synclyr2metadata
             artifact: synclyr2metadata-macos
           - os: windows-latest
-            output: synclyr2metadata-windows.zip
+            output: bundle
             artifact: synclyr2metadata-windows
 
     runs-on: ${{ matrix.os }}
@@ -59,20 +59,17 @@ jobs:
             CFLAGS="-O2 -I/opt/homebrew/include -Iinclude -Ithird_party/cjson" \
             LDFLAGS="-L/opt/homebrew/lib -lcurl -ltag_c -ltag -lz -lpthread"
 
-      - name: Build Windows
+      - name: Build and Bundle Windows
         if: matrix.os == 'windows-latest'
         shell: msys2 {0}
         run: |
           make native \
             LDFLAGS="-lcurl -ltag_c -ltag -lz -lpthread -lws2_32 -lcrypt32"
           
-          # Bundle executable with required MSYS2 DLLs
+          # Bundle executable with required MSYS2 DLLs into a folder
           mkdir bundle
           cp synclyr2metadata.exe bundle/
           ldd synclyr2metadata.exe | grep -i "mingw64" | awk '{print $3}' | xargs -I '{}' cp '{}' bundle/
-          
-          # Zip the bundle
-          cd bundle && zip -r ../synclyr2metadata-windows.zip *
 
       - name: Upload
         uses: actions/upload-artifact@v4
@@ -95,7 +92,11 @@ jobs:
         run: |
           mv synclyr2metadata-linux/synclyr2metadata ./synclyr2metadata-linux-amd64
           mv synclyr2metadata-macos/synclyr2metadata ./synclyr2metadata-macos-arm64
-          mv synclyr2metadata-windows/synclyr2metadata-windows.zip ./synclyr2metadata-windows-x64.zip
+          
+          # Zip the Windows directory natively on Ubuntu
+          cd synclyr2metadata-windows
+          zip -r ../synclyr2metadata-windows-x64.zip *
+          cd ..
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
