@@ -113,9 +113,9 @@ jobs:
           # Extract Linux binary
           mv synclyr2metadata-linux/synclyr2metadata ./synclyr2metadata-linux-amd64
           
-          # Extract Mac binaries out of their respective download folders
-          mv synclyr2metadata-macos-arm64/synclyr2metadata ./synclyr2metadata-macos-arm64
-          mv synclyr2metadata-macos-x86_64/synclyr2metadata ./synclyr2metadata-macos-x86_64
+          # Extract Mac binaries to unique destination names (avoids folder name collision)
+          mv synclyr2metadata-macos-arm64/synclyr2metadata ./synclyr2metadata-apple-silicon
+          mv synclyr2metadata-macos-x86_64/synclyr2metadata ./synclyr2metadata-intel-x86_64
           
           # Zip the Windows directory natively on Ubuntu
           cd synclyr2metadata-windows
@@ -127,8 +127,8 @@ jobs:
         with:
           files: |
             synclyr2metadata-linux-amd64
-            synclyr2metadata-macos-arm64
-            synclyr2metadata-macos-x86_64
+            synclyr2metadata-apple-silicon
+            synclyr2metadata-intel-x86_64
             synclyr2metadata-windows-x64.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
